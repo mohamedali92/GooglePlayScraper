@@ -1,4 +1,5 @@
 beautifulsoup4==4.6.0
+botocore==1.12.86
 bs4==0.0.1
 certifi==2018.10.15
 chardet==3.0.4
@@ -10,3 +11,4 @@ python-dateutil==2.6.1
 requests==2.20.1
 s3transfer==0.1.12
 six==1.11.0
+urllib3==1.24.1

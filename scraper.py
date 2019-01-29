@@ -111,11 +111,6 @@ class GooglePlayReviewScraper:
 
     @classmethod
     def generateScrapedObject(cls, review):
-        # Extract the review title
-        reviewTitleClass = "review-title"
-        reviewTitle = review.find(class_=reviewTitleClass).get_text() if review.find(
-            class_=reviewTitleClass).get_text() != "" else "Unavailable"
-
         # Extract the review body
         reviewBodyClass = "review-body"
         reviewBody = review.find(class_=reviewBodyClass).get_text() if review.find(
@@ -138,8 +133,7 @@ class GooglePlayReviewScraper:
         reviewRank = reviewRank.split("Rated ")[1].split(" stars")[0] if reviewRank.split(
             "Rated ")[1].split(" stars")[0] != "" else "Unavailable"
 
-        s = reviewTitle.encode('utf8')
-        search = re.escape(s)
+
         reviewBodyFixed = reviewBody.split("Full Review")[0]
 
         return {'reviewDate': reviewDate, 'reviewAuthor': reviewAuthor, 'reviewRank': reviewRank, 'reviewBody': reviewBodyFixed}
