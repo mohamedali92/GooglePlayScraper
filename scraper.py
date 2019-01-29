@@ -1,12 +1,15 @@
 from bs4 import BeautifulSoup
-
 import json
 import sys
-import urllib
-import urllib2
+from json import dumps, loads, JSONEncoder, JSONDecoder
+from time import sleep
+from datetime import datetime
+import re
+from random import randint
+import requests
 
 # Max number of pages to click through when scraping reviews
-MAX_PAGES_TO_SCRAPE = 5
+MAX_PAGES_TO_SCRAPE = 500
 
 # Google Play Reviews API base URL
 # Give it a try:
@@ -21,16 +24,16 @@ class GooglePlayScrapedReview:
     Object returned from scraping Google Play reviews.
     '''
 
-    def __init__(self, title, reviewText, delimiter='\n'):
+    def __init__(self, title, reviewText, date, author, rank):
         self.title = title.strip()
         self.reviewText = reviewText.strip()
-        self.delimiter = delimiter
+        self.date = date.strip()
+        self.author = author.strip()
+        self.rank = rank.strip()
 
-    def __str__(self):
-        string = \
-            ("%s%s%s" %
-                (self.title, self.delimiter, self.reviewText))
-        return string.encode('utf-8').strip()
+    def to_JSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__,
+                          sort_keys=True, indent=4)
 
 
 class GooglePlayReviewScraperException(Exception):
@@ -47,7 +50,7 @@ class GooglePlayReviewScraper:
       reviewType:0            [???]
       pageNum:11              [pagination]
       id:com.inxile.BardTale  [package name]
-      reviewSortOrder:2       [???]
+      reviewSortOrder:0       [order reviews are retrieved in, 0 will return the newest reviews first, 1 will return based on ratings and 2 will return the most helpful reviews first]
       xhr:1                   [???]
 
     [???] means I don't know what the param is for.
@@ -62,21 +65,17 @@ class GooglePlayReviewScraper:
                 'reviewType': 0,
                 'pageNum': 0,
                 'id': packageName,
-                'reviewSortOrder': 2,
+                'reviewSortOrder': 0,
                 'xhr': 1
             }
 
-    def scrapePageNumber(self, pageNum=0):
+    def scrapePageNumberUsingRequests(self, pageNum=0):
         # Modify POST params to use required pageNum param
         pagedPostParams = self.postParams.copy()
         pagedPostParams['pageNum'] = pageNum
 
-        # Encode
-        encodedPostParams = urllib.urlencode(pagedPostParams)
-
-        # Fire dat POST
-        return urllib2.urlopen(
-            GOOGLE_PLAY_REVIEWS_URL, encodedPostParams).read()
+        r = requests.post(GOOGLE_PLAY_REVIEWS_URL, data=pagedPostParams)
+        return r.content
 
     def parseResult(self, postResults):
         # Magic indices required for parsing Google API results
@@ -85,7 +84,7 @@ class GooglePlayReviewScraper:
         htmlStartIndex = 2
 
         # Classes for parsing
-        reviewBodyClass = "review-body"
+        reviewBodyClass = "single-review"
 
         # Read in the API Request
         postResultsString = postResults
@@ -96,12 +95,11 @@ class GooglePlayReviewScraper:
                 json.loads(
                     postResultsString[apiJsonStartIndex:]
                 )[contentIdx][htmlStartIndex]
-            htmlResult = BeautifulSoup(result)
+            htmlResult = BeautifulSoup(result, "html.parser")
 
             parsedResults = \
                 [self.generateScrapedObject(reviewBody) for
                     reviewBody in htmlResult.find_all(class_=reviewBodyClass)]
-
             return parsedResults
 
         except:
@@ -112,24 +110,48 @@ class GooglePlayReviewScraper:
                 )
 
     @classmethod
-    def generateScrapedObject(self, reviewBody):
+    def generateScrapedObject(cls, review):
         # Extract the review title
         reviewTitleClass = "review-title"
-        reviewTitle = reviewBody.find(class_=reviewTitleClass).get_text()
+        reviewTitle = review.find(class_=reviewTitleClass).get_text() if review.find(
+            class_=reviewTitleClass).get_text() != "" else "Unavailable"
 
         # Extract the review body
-        reviewBodyContentIdx = 2
-        reviewBody = reviewBody.contents[reviewBodyContentIdx]
+        reviewBodyClass = "review-body"
+        reviewBody = review.find(class_=reviewBodyClass).get_text() if review.find(
+            class_=reviewBodyClass).get_text() != "" else "Unavailable"
 
-        return GooglePlayScrapedReview(reviewTitle, reviewBody)
+        # Extract the review date
+        reviewDateClass = "review-date"
+        reviewDate = review.find(class_=reviewDateClass).get_text() if review.find(
+            class_=reviewDateClass).get_text() != "" else "Unavailable"
+
+        # Extract the review author
+        reviewAuthorClass = "author-name"
+        reviewAuthor = review.find(class_=reviewAuthorClass).get_text() if review.find(
+            class_=reviewAuthorClass).get_text() != "" else "Unavailable"
+
+        # Extract the review rank
+        reviewRankClass = "review-info-star-rating"
+        reviewRank = review.find("div", attrs={
+                                 "class": "tiny-star star-rating-non-editable-container"})["aria-label"]
+        reviewRank = reviewRank.split("Rated ")[1].split(" stars")[0] if reviewRank.split(
+            "Rated ")[1].split(" stars")[0] != "" else "Unavailable"
+
+        s = reviewTitle.encode('utf8')
+        search = re.escape(s)
+        reviewBodyFixed = reviewBody.split("Full Review")[0]
+
+        return {'reviewDate': reviewDate, 'reviewAuthor': reviewAuthor, 'reviewRank': reviewRank, 'reviewBody': reviewBodyFixed}
 
     def scrape(self, pageNumbers=None):
         parsedResults = []
         scrapePageNums = pageNumbers or self.maxNumberOfPages
 
         try:
-            for pageNum in xrange(scrapePageNums):
-                results = self.parseResult(self.scrapePageNumber(pageNum))
+            for pageNum in range(scrapePageNums):
+                results = self.parseResult(self.scrapePageNumberUsingRequests(pageNum))
+                sleep(randint(2, 5))
                 for result in results:
                     parsedResults.append(result)
         except GooglePlayReviewScraperException as e:
@@ -143,11 +165,11 @@ class GooglePlayReviewScraper:
 # Main method
 # Play around to get a feel for this
 if (__name__ == '__main__'):
-    PACKAGE_NAME = "com.inxile.BardTale"
-    NUM_PAGES_TO_SCRAPE = 2
-
-    gs = GooglePlayReviewScraper(PACKAGE_NAME)
-    scraped = gs.scrape(pageNumbers=2)
-
-    for review in scraped:
-        print(review)
+         appId = "com.samsung.android.spay"
+         try:
+             gs = GooglePlayReviewScraper(appId)
+             scraped = gs.scrape(pageNumbers=1)
+             print (len(scraped))
+             print (scraped)
+         except:
+            print ("error")
