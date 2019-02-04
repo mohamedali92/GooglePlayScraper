@@ -24,8 +24,7 @@ class GooglePlayScrapedReview:
     Object returned from scraping Google Play reviews.
     '''
 
-    def __init__(self, title, reviewText, date, author, rank):
-        self.title = title.strip()
+    def __init__(self, reviewText, date, author, rank):
         self.reviewText = reviewText.strip()
         self.date = date.strip()
         self.author = author.strip()
@@ -116,6 +115,7 @@ class GooglePlayReviewScraper:
         reviewBody = review.find(class_=reviewBodyClass).get_text() if review.find(
             class_=reviewBodyClass).get_text() != "" else "Unavailable"
 
+        reviewBodyFixed = reviewBody.split("Full Review")[0]
         # Extract the review date
         reviewDateClass = "review-date"
         reviewDate = review.find(class_=reviewDateClass).get_text() if review.find(
@@ -127,16 +127,12 @@ class GooglePlayReviewScraper:
             class_=reviewAuthorClass).get_text() != "" else "Unavailable"
 
         # Extract the review rank
-        reviewRankClass = "review-info-star-rating"
         reviewRank = review.find("div", attrs={
                                  "class": "tiny-star star-rating-non-editable-container"})["aria-label"]
         reviewRank = reviewRank.split("Rated ")[1].split(" stars")[0] if reviewRank.split(
             "Rated ")[1].split(" stars")[0] != "" else "Unavailable"
 
-
-        reviewBodyFixed = reviewBody.split("Full Review")[0]
-
-        return {'reviewDate': reviewDate, 'reviewAuthor': reviewAuthor, 'reviewRank': reviewRank, 'reviewBody': reviewBodyFixed}
+        return GooglePlayScrapedReview(reviewBodyFixed, reviewDate, reviewAuthor, reviewRank)
 
     def scrape(self, pageNumbers=None):
         parsedResults = []
@@ -155,7 +151,6 @@ class GooglePlayReviewScraper:
         finally:
             return parsedResults
 
-
 # Main method
 # Play around to get a feel for this
 if (__name__ == '__main__'):
@@ -163,7 +158,5 @@ if (__name__ == '__main__'):
          try:
              gs = GooglePlayReviewScraper(appId)
              scraped = gs.scrape(pageNumbers=1)
-             print (len(scraped))
-             print (scraped)
          except:
             print ("error")
