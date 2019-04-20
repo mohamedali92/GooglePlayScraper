@@ -35,6 +35,7 @@ class GooglePlayScrapedReview:
                           sort_keys=True, indent=4)
 
 
+
 class GooglePlayReviewScraperException(Exception):
     pass
 
@@ -158,5 +159,6 @@ if (__name__ == '__main__'):
          try:
              gs = GooglePlayReviewScraper(appId)
              scraped = gs.scrape(pageNumbers=1)
+             print(type((scraped[0].to_JSON())))
          except:
             print ("error")
