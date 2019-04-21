@@ -1,0 +1,1 @@
+from google_play_reviews_scraper.app import GooglePlayReviewScraper
