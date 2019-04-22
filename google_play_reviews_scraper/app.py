@@ -7,6 +7,8 @@ from datetime import datetime
 import re
 from random import randint
 import requests
+import argparse
+import jsonpickle
 
 # Max number of pages to click through when scraping reviews
 MAX_PAGES_TO_SCRAPE = 500
@@ -155,10 +157,17 @@ class GooglePlayReviewScraper:
 # Main method
 # Play around to get a feel for this
 if (__name__ == '__main__'):
-         appId = "com.samsung.android.spay"
-         try:
-             gs = GooglePlayReviewScraper(appId)
-             scraped = gs.scrape(pageNumbers=1)
-             print(type((scraped[0].to_JSON())))
-         except:
-            print ("error")
+    appId = "com.samsung.android.spay"
+    parser = argparse.ArgumentParser(description='Scrape Google Play app reviews')
+    parser.add_argument('--app_id', '-id', type=str, default='com.samsung.android.spay', help='Id of app to scrape')
+    parser.add_argument('--num_pages', '-n', type=int, default=1, help='Number of pages to scrape')
+    args = parser.parse_args()
+    #print (args.app_id)
+    try:
+        gs = GooglePlayReviewScraper(args.app_id)
+        scraped = gs.scrape(pageNumbers=args.num_pages)
+        reviewsAsJson = jsonpickle.encode(scraped, unpicklable=False)
+        with open('reviews.json', 'w') as outfile:
+            print(reviewsAsJson, file=outfile)
+    except:
+        print ("error")
