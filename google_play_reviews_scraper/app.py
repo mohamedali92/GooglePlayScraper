@@ -154,15 +154,15 @@ class GooglePlayReviewScraper:
         finally:
             return parsedResults
 
+
+def main():
 # Main method
 # Play around to get a feel for this
-if (__name__ == '__main__'):
     appId = "com.samsung.android.spay"
     parser = argparse.ArgumentParser(description='Scrape Google Play app reviews')
     parser.add_argument('--app_id', '-id', type=str, default='com.samsung.android.spay', help='Id of app to scrape')
     parser.add_argument('--num_pages', '-n', type=int, default=1, help='Number of pages to scrape')
     args = parser.parse_args()
-    #print (args.app_id)
     try:
         gs = GooglePlayReviewScraper(args.app_id)
         scraped = gs.scrape(pageNumbers=args.num_pages)
@@ -171,3 +171,6 @@ if (__name__ == '__main__'):
             print(reviewsAsJson, file=outfile)
     except:
         print ("error")
+
+if (__name__ == '__main__'):
+    main()
