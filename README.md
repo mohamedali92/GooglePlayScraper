@@ -22,7 +22,6 @@ Usage
 
 To scape an app's reviews:
 ```bash
-$ instagram-scraper <username> -u <your username> -p <your password>
 $ google-play-reviews-scraper -id <app_id> -n <number of pages to scrape>
 ```
 
